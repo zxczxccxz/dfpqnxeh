@@ -338,7 +338,7 @@ void serve_static(int fd, char *filename, int filesize, int size_flag, rangeNode
     // Don't edit Mmap
     srcp = Mmap(0, filesize, PROT_READ, MAP_PRIVATE, srcfd, 0);//line:netp:servestatic:mmap
     Close(srcfd);                           //line:netp:servestatic:close
-    if (rio_writen(fd, srcp + nodePtr->first, filesize) < filesize) {
+    if (rio_writen(fd, srcp + nodePtr->first, contentLength) < filesize) {
       printf("errors writing to client.\n");         //line:netp:servestatic:write
     }
 
