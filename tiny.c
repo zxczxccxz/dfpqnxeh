@@ -207,6 +207,7 @@ void serve_static(int fd, char *filename, int filesize, int size_flag, rangeNode
   size_t writesize;
 
   int contentLength = 0;
+  int invalidQuery = 0;
 
   /* Send response headers to client */
   get_filetype(filename, filetype);       //line:netp:servestatic:getfiletype
@@ -223,7 +224,11 @@ void serve_static(int fd, char *filename, int filesize, int size_flag, rangeNode
       sprintf(buf, "HTTP/1.1 416 Range Not Satisfiable\r\n");    //line:netp:servestatic:beginserve
       sprintf(buf, "%sServer: Tiny Web Server\r\n", buf);
       sprintf(buf, "%sConnection: close\r\n", buf);
-      contentLength = 0;
+      sprintf(buf, "%sAccept-Ranges: bytes\r\n", buf);
+      sprintf(buf, "%sContent-Range: bytes */%d\r\n",
+              buf, filesize);
+
+      invalidQuery = 1;
     }
     else if ((nodePtr->first == 0) && (nodePtr->second == filesize - 1)) {
       sprintf(buf, "HTTP/1.0 200 OK\r\n");    //line:netp:servestatic:beginserve
@@ -292,10 +297,12 @@ void serve_static(int fd, char *filename, int filesize, int size_flag, rangeNode
     }
   }
 
-  if (size_flag == 1) {
-    sprintf(buf, "%sContent-length: %d\r\n", buf, contentLength);
+  if (invalidQuery != 1) {
+    if (size_flag == 1) {
+      sprintf(buf, "%sContent-length: %d\r\n", buf, contentLength);
+    }
+    sprintf(buf, "%sContent-type: %s\r\n\r\n", buf, filetype);
   }
-  sprintf(buf, "%sContent-type: %s\r\n\r\n", buf, filetype);
   writesize = strlen(buf);
   if (rio_writen(fd, buf, strlen(buf)) < writesize) {
     printf("errors writing to client.\n");       //line:netp:servestatic:endserve
