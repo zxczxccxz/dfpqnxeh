@@ -206,67 +206,92 @@ void serve_static(int fd, char *filename, int filesize, int size_flag, rangeNode
   char *srcp, filetype[MAXLINE], buf[MAXBUF];
   size_t writesize;
 
-  char *httpResponse = "";
   int contentLength;
 
   /* Send response headers to client */
   get_filetype(filename, filetype);       //line:netp:servestatic:getfiletype
 
   if (nodePtr->type == 0) {
-    httpResponse = "HTTP/1.0 200 OK\r\n";
+    sprintf(buf, "HTTP/1.0 200 OK\r\n");    //line:netp:servestatic:beginserve
+    sprintf(buf, "%sServer: Tiny Web Server\r\n", buf);
+    sprintf(buf, "%sConnection: close\r\n", buf);
     contentLength = filesize;
   }
-  else if ((nodePtr->type >= 1) && (nodePtr->type <= 3)) {
-    if (nodePtr->first > filesize) { // Invalid range
-      printf("nodePtr first > filesize\n");
-      httpResponse = "HTTP/1.1 416 Range Not Satisfiable\r\n";
+
+  else if (nodePtr->type == 1) { // bytes=r1-r2
+    if ((nodePtr->first > filesize) || (nodePtr->first > nodePtr->second)) {
+      sprintf(buf, "HTTP/1.1 416 Range Not Satisfiable\r\n");    //line:netp:servestatic:beginserve
+      sprintf(buf, "%sServer: Tiny Web Server\r\n", buf);
+      sprintf(buf, "%sConnection: close\r\n", buf);
       contentLength = 0;
     }
     else if ((nodePtr->first == 0) && (nodePtr->second == filesize - 1)) {
-      httpResponse = "HTTP/1.0 200 OK\r\n";
+      sprintf(buf, "HTTP/1.0 200 OK\r\n");    //line:netp:servestatic:beginserve
+      sprintf(buf, "%sServer: Tiny Web Server\r\n", buf);
+      sprintf(buf, "%sConnection: close\r\n", buf);
       contentLength = filesize;
     }
-    else {
-      if (nodePtr->type == 1) { // bytes=r1-r2 (both are positive)
-        if (nodePtr->first > nodePtr->second) { // Invalid range
-          printf("nodePtr first > nodePtr second\n");
-          httpResponse = "HTTP/1.1 416 Range Not Satisfiable\r\n";
-          contentLength = 0;
-        }
-        else {
-          httpResponse = "HTTP/1.1 206 Partial Content\r\n";
-          if (nodePtr->second >= filesize) {
-            nodePtr->second = filesize - 1; // Not sure if i have to subtract 1
-            contentLength = 1 + nodePtr->second - nodePtr->first;
-          }
-          else {
-            contentLength = 1 + nodePtr->second - nodePtr->first;
-          }
-        }
+    else { // DONE WITH HEADERS
+      if (nodePtr->second >= filesize) {
+        nodePtr->second = filesize - 1;
+        contentLength = 1 + nodePtr->second - nodePtr->first;
       }
-
-      else if (nodePtr->type == 2) { // bytes=r1-
-        nodePtr->second = filesize - 1; // Not sure if i have to subtract 1
+      else {
         contentLength = 1 + nodePtr->second - nodePtr->first;
       }
 
-      else if (nodePtr->type == 3) { // bytes=-r1
-        contentLength = nodePtr->first;
-        nodePtr->first = filesize - nodePtr->first;
-        nodePtr->second = filesize - 1;
-      }
-
-      else { // Idk prob edge case or nothing
-        contentLength = 0;
-        printf("SORUGBDIORJHNFIPOEGHSDIOPGHDPSEIJGPSDIORIJGOPSEPIGHDIORJHOPGSEJ90GHDR0PGJSEOGJPSOJSEPGOJ");
-      }
+      sprintf(buf, "HTTP/1.1 206 Partial Content\r\n");    //line:netp:servestatic:beginserve
+      sprintf(buf, "%sServer: Tiny Web Server\r\n", buf);
+      sprintf(buf, "%sConnection: close\r\n", buf);
+      sprintf(buf, "%sAccept-Ranges: bytes\r\n", buf);
+      sprintf(buf, "%sContent-Range: bytes %d-%d/%d\r\n",
+              buf, nodePtr->first, nodePtr->second, filesize);
     }
   }
 
-//  sprintf(buf, "HTTP/1.0 200 OK\r\n");    //line:netp:servestatic:beginserve
-  sprintf(buf, httpResponse);    //line:netp:servestatic:beginserve
-  sprintf(buf, "%sServer: Tiny Web Server\r\n", buf);
-  sprintf(buf, "%sConnection: close\r\n", buf);
+  else if (nodePtr->type == 2) { // bytes=r1-
+    if (nodePtr->first > filesize) { // Invalid range
+      contentLength = 0;
+
+      sprintf(buf, "HTTP/1.1 416 Range Not Satisfiable\r\n");    //line:netp:servestatic:beginserve
+      sprintf(buf, "%sServer: Tiny Web Server\r\n", buf);
+      sprintf(buf, "%sConnection: close\r\n", buf);
+    }
+    else {
+      nodePtr->second = filesize - 1; // Not sure if i have to subtract 1
+      contentLength = 1 + nodePtr->second - nodePtr->first;
+
+      sprintf(buf, "HTTP/1.1 206 Partial Content\r\n");    //line:netp:servestatic:beginserve
+      sprintf(buf, "%sServer: Tiny Web Server\r\n", buf);
+      sprintf(buf, "%sConnection: close\r\n", buf);
+      sprintf(buf, "%sAccept-Ranges: bytes\r\n", buf);
+      sprintf(buf, "%sContent-Range: bytes %d-%d/%d\r\n",
+              buf, nodePtr->first, nodePtr->second, filesize);
+    }
+  }
+
+  else if (nodePtr->type == 3) { // bytes=-r1
+    if (nodePtr->first > filesize) { // Invalid range
+      contentLength = 0;
+
+      sprintf(buf, "HTTP/1.1 416 Range Not Satisfiable\r\n");    //line:netp:servestatic:beginserve
+      sprintf(buf, "%sServer: Tiny Web Server\r\n", buf);
+      sprintf(buf, "%sConnection: close\r\n", buf);
+    }
+    else {
+      contentLength = nodePtr->first;
+      nodePtr->first = filesize - nodePtr->first;
+      nodePtr->second = filesize - 1;
+
+      sprintf(buf, "HTTP/1.1 206 Partial Content\r\n");    //line:netp:servestatic:beginserve
+      sprintf(buf, "%sServer: Tiny Web Server\r\n", buf);
+      sprintf(buf, "%sConnection: close\r\n", buf);
+      sprintf(buf, "%sAccept-Ranges: bytes\r\n", buf);
+      sprintf(buf, "%sContent-Range: bytes %d-%d/%d\r\n",
+              buf, nodePtr->first, nodePtr->second, filesize);
+    }
+  }
+
   if (size_flag == 1) {
     sprintf(buf, "%sContent-length: %d\r\n", buf, contentLength);
   }
