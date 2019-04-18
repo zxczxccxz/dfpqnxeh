@@ -206,7 +206,7 @@ void serve_static(int fd, char *filename, int filesize, int size_flag, rangeNode
   char *srcp, filetype[MAXLINE], buf[MAXBUF];
   size_t writesize;
 
-  int contentLength;
+  int contentLength = 0;
 
   /* Send response headers to client */
   get_filetype(filename, filetype);       //line:netp:servestatic:getfiletype
@@ -279,8 +279,8 @@ void serve_static(int fd, char *filename, int filesize, int size_flag, rangeNode
       sprintf(buf, "%sConnection: close\r\n", buf);
     }
     else {
-      contentLength = -(nodePtr->first);
-      nodePtr->first = filesize + nodePtr->first;
+      contentLength = abs(nodePtr->first);
+      nodePtr->first = filesize - abs(nodePtr->first);
       nodePtr->second = filesize - 1;
 
       sprintf(buf, "HTTP/1.1 206 Partial Content\r\n");    //line:netp:servestatic:beginserve
