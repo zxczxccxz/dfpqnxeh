@@ -201,7 +201,6 @@ int parse_uri(char *uri, char *filename, char *cgiargs)
 /* $begin serve_static */
 void serve_static(int fd, char *filename, int filesize, int size_flag, rangeNode *nodePtr)
 {
-  printf("Type: %d\nStart: %d\nEnd: %d\n", nodePtr->type, nodePtr->first, nodePtr->second);
   int srcfd;
   char *srcp, filetype[MAXLINE], buf[MAXBUF];
   size_t writesize;
@@ -230,6 +229,7 @@ void serve_static(int fd, char *filename, int filesize, int size_flag, rangeNode
               buf, filesize);
 
       invalidQuery = 1;
+      contentLength = 0;
     }
     else if ((nodePtr->first == 0) && (nodePtr->second == filesize - 1)) {
       sprintf(buf, "HTTP/1.0 200 OK\r\n");    //line:netp:servestatic:beginserve
@@ -257,11 +257,15 @@ void serve_static(int fd, char *filename, int filesize, int size_flag, rangeNode
 
   else if (nodePtr->type == 2) { // bytes=r1-
     if (nodePtr->first > filesize) { // Invalid range
-      contentLength = 0;
-
       sprintf(buf, "HTTP/1.1 416 Range Not Satisfiable\r\n");    //line:netp:servestatic:beginserve
       sprintf(buf, "%sServer: Tiny Web Server\r\n", buf);
       sprintf(buf, "%sConnection: close\r\n", buf);
+      sprintf(buf, "%sAccept-Ranges: bytes\r\n", buf);
+      sprintf(buf, "%sContent-Range: bytes */%d\r\n",
+              buf, filesize);
+
+      invalidQuery = 1;
+      contentLength = 0;
     }
     else {
       nodePtr->second = filesize - 1; // Not sure if i have to subtract 1
@@ -278,11 +282,15 @@ void serve_static(int fd, char *filename, int filesize, int size_flag, rangeNode
 
   else if (nodePtr->type == 3) { // bytes=-r1
     if (nodePtr->first > filesize) { // Invalid range
-      contentLength = 0;
-
       sprintf(buf, "HTTP/1.1 416 Range Not Satisfiable\r\n");    //line:netp:servestatic:beginserve
       sprintf(buf, "%sServer: Tiny Web Server\r\n", buf);
       sprintf(buf, "%sConnection: close\r\n", buf);
+      sprintf(buf, "%sAccept-Ranges: bytes\r\n", buf);
+      sprintf(buf, "%sContent-Range: bytes */%d\r\n",
+              buf, filesize);
+
+      invalidQuery = 1;
+      contentLength = 0;
     }
     else {
       contentLength = abs(nodePtr->first);
