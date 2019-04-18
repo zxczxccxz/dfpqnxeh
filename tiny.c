@@ -201,6 +201,7 @@ int parse_uri(char *uri, char *filename, char *cgiargs)
 /* $begin serve_static */
 void serve_static(int fd, char *filename, int filesize, int size_flag, rangeNode *nodePtr)
 {
+  printf("filesize: %d\nsizeflag: %d\n", filesize, size_flag);
   printf("Type: %d\nStart: %d\nEnd: %d\n", nodePtr->type, nodePtr->first, nodePtr->second);
   int srcfd;
   char *srcp, filetype[MAXLINE], buf[MAXBUF];
