@@ -211,6 +211,8 @@ void serve_static(int fd, char *filename, int filesize, int size_flag, rangeNode
   /* Send response headers to client */
   get_filetype(filename, filetype);       //line:netp:servestatic:getfiletype
 
+  // Request is sent with no range specified
+  // Send the entire file
   if (nodePtr->type == 0) {
     sprintf(buf, "HTTP/1.0 200 OK\r\n");    //line:netp:servestatic:beginserve
     sprintf(buf, "%sServer: Tiny Web Server\r\n", buf);
@@ -219,6 +221,8 @@ void serve_static(int fd, char *filename, int filesize, int size_flag, rangeNode
   }
 
   else if (nodePtr->type == 1) { // bytes=r1-r2
+    // Error check: r1 > filesize OR r1 > r2
+    // Return error headers, set invalidQuery flag, and set contentLength to 0
     if ((nodePtr->first >= filesize) || (nodePtr->first > nodePtr->second)) {
       sprintf(buf, "HTTP/1.1 416 Range Not Satisfiable\r\n");    //line:netp:servestatic:beginserve
       sprintf(buf, "%sServer: Tiny Web Server\r\n", buf);
@@ -230,13 +234,18 @@ void serve_static(int fd, char *filename, int filesize, int size_flag, rangeNode
       invalidQuery = 1;
       contentLength = 0;
     }
+    // Check range equals the entire file
+    // Return request as if no range was specified (pizza specified edge case)
     else if ((nodePtr->first == 0) && (nodePtr->second == filesize - 1)) {
       sprintf(buf, "HTTP/1.0 200 OK\r\n");    //line:netp:servestatic:beginserve
       sprintf(buf, "%sServer: Tiny Web Server\r\n", buf);
       sprintf(buf, "%sConnection: close\r\n", buf);
       contentLength = filesize;
     }
-    else { // DONE WITH HEADERS
+    // Check r2 > filesize
+    // Return headers
+    // Properly set content length
+    else {
       if (nodePtr->second >= filesize) {
         nodePtr->second = filesize - 1;
         contentLength = 1 + nodePtr->second - nodePtr->first;
@@ -255,12 +264,16 @@ void serve_static(int fd, char *filename, int filesize, int size_flag, rangeNode
   }
 
   else if (nodePtr->type == 2) { // bytes=r1-
-    if (nodePtr->first == 0) { // Entire file
+    // Check range equals the entire file
+    // Return request as if no range was specified (pizza specified edge case)
+    if (nodePtr->first == 0) {
       sprintf(buf, "HTTP/1.0 200 OK\r\n");    //line:netp:servestatic:beginserve
       sprintf(buf, "%sServer: Tiny Web Server\r\n", buf);
       sprintf(buf, "%sConnection: close\r\n", buf);
       contentLength = filesize;
     }
+    // Error check r1 > filesize
+    // Return error headers, set invalidQuery flag, and set contentLength to 0
     else if (nodePtr->first >= filesize) { // Invalid range
       sprintf(buf, "HTTP/1.1 416 Range Not Satisfiable\r\n");    //line:netp:servestatic:beginserve
       sprintf(buf, "%sServer: Tiny Web Server\r\n", buf);
@@ -272,8 +285,11 @@ void serve_static(int fd, char *filename, int filesize, int size_flag, rangeNode
       invalidQuery = 1;
       contentLength = 0;
     }
+    // Set r2 to end of file
+    // Set content length
+    // Return partial headers
     else {
-      nodePtr->second = filesize - 1; // Not sure if i have to subtract 1
+      nodePtr->second = filesize - 1;
       contentLength = 1 + nodePtr->second - nodePtr->first;
 
       sprintf(buf, "HTTP/1.1 206 Partial Content\r\n");    //line:netp:servestatic:beginserve
@@ -286,7 +302,9 @@ void serve_static(int fd, char *filename, int filesize, int size_flag, rangeNode
   }
 
   else if (nodePtr->type == 3) { // bytes=-r1
-    if (nodePtr->first == 0) { // Invalid
+    // Error check 0 length (edge case)
+    // Return error headers, set invalidQuery flag, and set contentLength to 0
+    if (nodePtr->first == 0) {
       sprintf(buf, "HTTP/1.1 416 Range Not Satisfiable\r\n");    //line:netp:servestatic:beginserve
       sprintf(buf, "%sServer: Tiny Web Server\r\n", buf);
       sprintf(buf, "%sConnection: close\r\n", buf);
@@ -297,7 +315,11 @@ void serve_static(int fd, char *filename, int filesize, int size_flag, rangeNode
       invalidQuery = 1;
       contentLength = 0;
     }
+    // Calculate contentLength, r1, and r2
+    // Return partial headers
     else {
+      // Check r1 >= filesize (edge case)
+      // Set content length to the entire file
       if (abs(nodePtr->first) >= filesize) {
         nodePtr->first = 0;
         nodePtr->second = filesize - 1;
@@ -318,6 +340,7 @@ void serve_static(int fd, char *filename, int filesize, int size_flag, rangeNode
     }
   }
 
+  // Check for invalidQuery
   if (invalidQuery != 1) {
     if (size_flag == 1) {
       sprintf(buf, "%sContent-length: %d\r\n", buf, contentLength);
@@ -332,12 +355,15 @@ void serve_static(int fd, char *filename, int filesize, int size_flag, rangeNode
   printf("Response headers:\n");
   printf("%s", buf);
 
+  // Check for invalidQuery
   if (invalidQuery != 1) {
     /* Send response body to client */
     srcfd = Open(filename, O_RDONLY, 0);    //line:netp:servestatic:open
-    // Don't edit Mmap
+    // Don't edit Mmap (from piazza)
     srcp = Mmap(0, filesize, PROT_READ, MAP_PRIVATE, srcfd, 0);//line:netp:servestatic:mmap
     Close(srcfd);                           //line:netp:servestatic:close
+    // Pointer arithmetic to set the start of the file
+    // Only grab contentLength number of bytes
     if (rio_writen(fd, srcp + nodePtr->first, contentLength) < filesize) {
       printf("errors writing to client.\n");         //line:netp:servestatic:write
     }
