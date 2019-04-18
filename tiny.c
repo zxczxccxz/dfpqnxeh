@@ -224,7 +224,7 @@ void serve_static(int fd, char *filename, int filesize, int size_flag, rangeNode
     }
     else {
       if (nodePtr->type == 1) { // bytes=r1-r2 (both are positive)
-        if (nodePtr->second > nodePtr->first) { // Invalid range
+        if (nodePtr->first > nodePtr->second) { // Invalid range
           httpResponse = "HTTP/1.1 416 Range Not Satisfiable\r\n";
         }
         else {
