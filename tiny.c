@@ -120,7 +120,7 @@ void process_range(char *buf, rangeNode *nodePtr) {
     } 
     else if (sscanf(next_tok, "%u-",&r1) == 1) {
       nodePtr->type = 2;
-      nodePtr->first = r1; 
+      nodePtr->first = r1;
     } 
     else {
       nodePtr->type = 0;
@@ -201,15 +201,57 @@ int parse_uri(char *uri, char *filename, char *cgiargs)
 /* $begin serve_static */
 void serve_static(int fd, char *filename, int filesize, int size_flag, rangeNode *nodePtr)
 {
-  printf("filesize: %d\nsizeflag: %d\n", filesize, size_flag);
   printf("Type: %d\nStart: %d\nEnd: %d\n", nodePtr->type, nodePtr->first, nodePtr->second);
   int srcfd;
   char *srcp, filetype[MAXLINE], buf[MAXBUF];
   size_t writesize;
 
+  char *httpResponse = "";
+  int contentLength = filesize;
+
   /* Send response headers to client */
   get_filetype(filename, filetype);       //line:netp:servestatic:getfiletype
-  sprintf(buf, "HTTP/1.0 200 OK\r\n");    //line:netp:servestatic:beginserve
+
+  if (nodePtr->type == 0) {
+    httpResponse = "HTTP/1.0 200 OK\r\n";
+  }
+  else if ((nodePtr->type >= 1) && (nodePtr->type <= 3)) {
+    if (nodePtr->first > filesize) { // Invalid range
+      httpResponse = "HTTP/1.1 416 Range Not Satisfiable\r\n";
+    }
+    else if ((nodePtr->first == 0) && (nodePtr->second == filesize - 1)) {
+      httpResponse = "HTTP/1.0 200 OK\r\n";
+    }
+    else {
+      if (nodePtr->type == 1) { // bytes=r1-r2 (both are positive)
+        if (nodePtr->second > nodePtr->first) { // Invalid range
+          httpResponse = "HTTP/1.1 416 Range Not Satisfiable\r\n";
+        }
+        else {
+          httpResponse = "HTTP/1.1 206 Partial Content\r\n";
+          if (nodePtr->second >= filesize) {
+            nodePtr->second = filesize - 1;
+          }
+        }
+      }
+
+      else if (nodePtr->type == 2) { // bytes=r1-
+        nodePtr->second = filesize - 1;
+      }
+
+      else if (nodePtr->type == 3) { // bytes=-r1
+        nodePtr->first = filesize - nodePtr->first;
+        nodePtr->second = filesize - 1;
+      }
+
+      else { // Idk prob edge case or nothing
+        printf("SORUGBDIORJHNFIPOEGHSDIOPGHDPSEIJGPSDIORIJGOPSEPIGHDIORJHOPGSEJ90GHDR0PGJSEOGJPSOJSEPGOJ");
+      }
+    }
+  }
+
+//  sprintf(buf, "HTTP/1.0 200 OK\r\n");    //line:netp:servestatic:beginserve
+  sprintf(buf, httpResponse);    //line:netp:servestatic:beginserve
   sprintf(buf, "%sServer: Tiny Web Server\r\n", buf);
   sprintf(buf, "%sConnection: close\r\n", buf);
   if (size_flag == 1) {
@@ -228,9 +270,10 @@ void serve_static(int fd, char *filename, int filesize, int size_flag, rangeNode
   // Don't edit Mmap
   srcp = Mmap(0, filesize, PROT_READ, MAP_PRIVATE, srcfd, 0);//line:netp:servestatic:mmap
   Close(srcfd);                           //line:netp:servestatic:close
-  if (rio_writen(fd, srcp, filesize) < filesize) {
+  if (rio_writen(fd, srcp + nodePtr->first, filesize) < filesize) {
     printf("errors writing to client.\n");         //line:netp:servestatic:write
   }
+
   Munmap(srcp, filesize);                 //line:netp:servestatic:munmap
 }
 
