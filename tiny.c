@@ -219,7 +219,7 @@ void serve_static(int fd, char *filename, int filesize, int size_flag, rangeNode
   }
 
   else if (nodePtr->type == 1) { // bytes=r1-r2
-    if ((nodePtr->first > filesize) || (nodePtr->first > nodePtr->second)) {
+    if ((nodePtr->first >= filesize) || (nodePtr->first > nodePtr->second)) {
       printf("invalid sourghoiseogehpasfoiejgoehpwghspoeghppsde\n");
       sprintf(buf, "HTTP/1.1 416 Range Not Satisfiable\r\n");    //line:netp:servestatic:beginserve
       sprintf(buf, "%sServer: Tiny Web Server\r\n", buf);
@@ -256,7 +256,7 @@ void serve_static(int fd, char *filename, int filesize, int size_flag, rangeNode
   }
 
   else if (nodePtr->type == 2) { // bytes=r1-
-    if (nodePtr->first > filesize) { // Invalid range
+    if (nodePtr->first >= filesize) { // Invalid range
       sprintf(buf, "HTTP/1.1 416 Range Not Satisfiable\r\n");    //line:netp:servestatic:beginserve
       sprintf(buf, "%sServer: Tiny Web Server\r\n", buf);
       sprintf(buf, "%sConnection: close\r\n", buf);
@@ -281,7 +281,7 @@ void serve_static(int fd, char *filename, int filesize, int size_flag, rangeNode
   }
 
   else if (nodePtr->type == 3) { // bytes=-r1
-    if (nodePtr->first > filesize) { // Invalid range
+    if (nodePtr->first >= filesize) { // Invalid range
       sprintf(buf, "HTTP/1.1 416 Range Not Satisfiable\r\n");    //line:netp:servestatic:beginserve
       sprintf(buf, "%sServer: Tiny Web Server\r\n", buf);
       sprintf(buf, "%sConnection: close\r\n", buf);
