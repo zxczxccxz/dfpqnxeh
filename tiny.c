@@ -240,7 +240,7 @@ void serve_static(int fd, char *filename, int filesize, int size_flag, rangeNode
             contentLength = 1 + nodePtr->second - nodePtr->first;
           }
           else {
-            contentLength = nodePtr->second - nodePtr->first;
+            contentLength = 1 + nodePtr->second - nodePtr->first;
           }
         }
       }
