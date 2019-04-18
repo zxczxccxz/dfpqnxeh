@@ -207,46 +207,57 @@ void serve_static(int fd, char *filename, int filesize, int size_flag, rangeNode
   size_t writesize;
 
   char *httpResponse = "";
-  int contentLength = filesize;
+  int contentLength;
 
   /* Send response headers to client */
   get_filetype(filename, filetype);       //line:netp:servestatic:getfiletype
 
   if (nodePtr->type == 0) {
     httpResponse = "HTTP/1.0 200 OK\r\n";
+    contentLength = filesize;
   }
   else if ((nodePtr->type >= 1) && (nodePtr->type <= 3)) {
     if (nodePtr->first > filesize) { // Invalid range
       printf("nodePtr first > filesize\n");
       httpResponse = "HTTP/1.1 416 Range Not Satisfiable\r\n";
+      contentLength = 0;
     }
     else if ((nodePtr->first == 0) && (nodePtr->second == filesize - 1)) {
       httpResponse = "HTTP/1.0 200 OK\r\n";
+      contentLength = filesize;
     }
     else {
       if (nodePtr->type == 1) { // bytes=r1-r2 (both are positive)
         if (nodePtr->first > nodePtr->second) { // Invalid range
           printf("nodePtr first > nodePtr second\n");
           httpResponse = "HTTP/1.1 416 Range Not Satisfiable\r\n";
+          contentLength = 0;
         }
         else {
           httpResponse = "HTTP/1.1 206 Partial Content\r\n";
           if (nodePtr->second >= filesize) {
-            nodePtr->second = filesize - 1;
+            nodePtr->second = filesize - 1; // Not sure if i have to subtract 1
+            contentLength = 1 + nodePtr->second - nodePtr->first;
+          }
+          else {
+            contentLength = nodePtr->second - nodePtr->first;
           }
         }
       }
 
       else if (nodePtr->type == 2) { // bytes=r1-
-        nodePtr->second = filesize - 1;
+        nodePtr->second = filesize - 1; // Not sure if i have to subtract 1
+        contentLength = 1 + nodePtr->second - nodePtr->first;
       }
 
       else if (nodePtr->type == 3) { // bytes=-r1
+        contentLength = nodePtr->first;
         nodePtr->first = filesize - nodePtr->first;
         nodePtr->second = filesize - 1;
       }
 
       else { // Idk prob edge case or nothing
+        contentLength = 0;
         printf("SORUGBDIORJHNFIPOEGHSDIOPGHDPSEIJGPSDIORIJGOPSEPIGHDIORJHOPGSEJ90GHDR0PGJSEOGJPSOJSEPGOJ");
       }
     }
@@ -257,7 +268,7 @@ void serve_static(int fd, char *filename, int filesize, int size_flag, rangeNode
   sprintf(buf, "%sServer: Tiny Web Server\r\n", buf);
   sprintf(buf, "%sConnection: close\r\n", buf);
   if (size_flag == 1) {
-    sprintf(buf, "%sContent-length: %d\r\n", buf, filesize);
+    sprintf(buf, "%sContent-length: %d\r\n", buf, contentLength);
   }
   sprintf(buf, "%sContent-type: %s\r\n\r\n", buf, filetype);
   writesize = strlen(buf);
