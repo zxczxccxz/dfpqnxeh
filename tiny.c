@@ -217,6 +217,7 @@ void serve_static(int fd, char *filename, int filesize, int size_flag, rangeNode
   }
   else if ((nodePtr->type >= 1) && (nodePtr->type <= 3)) {
     if (nodePtr->first > filesize) { // Invalid range
+      printf("nodePtr first > filesize\n");
       httpResponse = "HTTP/1.1 416 Range Not Satisfiable\r\n";
     }
     else if ((nodePtr->first == 0) && (nodePtr->second == filesize - 1)) {
@@ -225,6 +226,7 @@ void serve_static(int fd, char *filename, int filesize, int size_flag, rangeNode
     else {
       if (nodePtr->type == 1) { // bytes=r1-r2 (both are positive)
         if (nodePtr->first > nodePtr->second) { // Invalid range
+          printf("nodePtr first > nodePtr second\n");
           httpResponse = "HTTP/1.1 416 Range Not Satisfiable\r\n";
         }
         else {
